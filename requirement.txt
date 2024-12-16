@@ -1,4 +1,0 @@
-Flask
-Redis
-gunicorn
-setuptools>=65.5.1
