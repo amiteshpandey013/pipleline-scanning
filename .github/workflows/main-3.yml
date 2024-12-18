@@ -23,3 +23,21 @@ jobs:
           image-tag: my-app:latest
           sysdig-secure-token: ${{ secrets.SECURE_API_TOKEN }}
           skip-summary: true
+    - name: Check scan status
+      uses: actions/github-script@v6
+      if: always()  # Check even if the previous step fails
+      with:
+          script: |
+            if (steps.scan.outputs.status == 'success') {
+              console.log('Scan passed, proceeding to ECR push')
+            } else {
+              console.log('Scan failed, build stopped')
+              core.setFailed('Build failed due to scan policy violation')
+            }
+    - name: Push to ECR (if scan passes)
+      if: steps.scan.outputs.status == 'success'
+      uses: aws-actions/amazon-ecr-push@v2
+      with:
+          aws-region: your-aws-region
+          repository-name: your-repo-name
+          image-tag: ${{ github.sha }}
