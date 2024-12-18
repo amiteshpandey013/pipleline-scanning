@@ -33,7 +33,7 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            **const core = require('@actions/core');**  # Declare core outside the script block
+            const core = require('@actions/core');  # Declare core outside the script block
 
             console.log("Context:", context);
             console.log("Steps:", steps);
