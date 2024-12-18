@@ -8,6 +8,8 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    outputs: # Define job-level outputs
+      push_to_ecr: ${{ steps.check_scan_status.outputs.push_to_ecr }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -36,8 +38,10 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
+            const core = require('@actions/core');
             try {
-              const core = require('@actions/core');
+              console.log("Context:", JSON.stringify(context, null, 2));
+              console.log("Steps:", JSON.stringify(steps, null, 2));
 
               if (steps.scan && steps.scan.outputs && steps.scan.outputs.status === 'success') {
                 console.log('Scan passed, proceeding to ECR push');
@@ -48,20 +52,25 @@ jobs:
                 core.setOutput('push_to_ecr', 'false');
               }
             } catch (error) {
-              console.error("Error in github-script:", error); // Catch and log errors
-              core.setFailed(`JavaScript error: ${error.message}`); // Fail the workflow with the error message
+              console.error("Error in github-script:", error);
+              core.setFailed(`JavaScript error: ${error.message}`);
             }
 
+  deploy: # New deploy job
+    needs: build-scan-and-push # Depends on the build-scan-and-push job
+    runs-on: ubuntu-latest
+    if: needs.build-scan-and-push.outputs.push_to_ecr == 'true'
+    permissions:
+        id-token: write
+    steps:
       - name: Configure AWS credentials
-        if: steps.check_scan_status.outputs.push_to_ecr == 'true' # Access output inside the if condition
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::288761737678:role/iam-ecr-full-access
           aws-region: ap-southeast-2
 
       - name: Push to ECR
-        if: steps.check_scan_status.outputs.push_to_ecr == 'true' # Access output inside the if condition
-        uses: hands-lab/push-ecr-action@v1
+        uses: aws-actions/amazon-ecr-push@v2 # Use the official AWS action
         with:
           aws-region: ap-southeast-2
           repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
