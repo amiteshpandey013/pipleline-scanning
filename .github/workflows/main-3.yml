@@ -33,34 +33,20 @@ jobs:
           sysdig-secure-token: ${{ secrets.SECURE_API_TOKEN }}
           skip-summary: true
 
-  check-scan-status: # Second job: Check the scan status (JavaScript logic)
-    needs: build-and-scan # Run after build and scan
+  check-scan-status:
+    needs: build-and-scan
     runs-on: ubuntu-latest
-    outputs:
-      push_to_ecr: ${{ steps.check_scan_status_script.outputs.push_to_ecr }}
     steps:
-      - name: Check scan status
+      - name: Check scan status (Shell Script)
         id: check_scan_status_script
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const core = require('@actions/core');
-            try {
-              const scanStatus = context.needs.build_and_scan.outputs.scan_status;
-              console.log("Scan Status:", scanStatus);
-
-              if (scanStatus === 'success') {
-                console.log('Scan passed, proceeding to ECR push');
-                core.setOutput('push_to_ecr', 'true');
-              } else {
-                console.log('Scan failed or status not found. Build stopped.');
-                core.setFailed('Scan failed or did not produce an output'); // More informative message
-                core.setOutput('push_to_ecr', 'false');
-              }
-            } catch (error) {
-              console.error("Error in github-script:", error);
-              core.setFailed(`JavaScript error: ${error.message}`);
-            }
+        run: |
+          if [[ "${{ needs.build-and-scan.outputs.scan_status }}" == "success" ]]; then
+            echo "Scan passed"
+            echo "push_to_ecr=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Scan failed"
+            echo "push_to_ecr=false" >> "$GITHUB_OUTPUT"
+          fi
 
   deploy: # Third job: Deploy to ECR
     needs: check-scan-status
