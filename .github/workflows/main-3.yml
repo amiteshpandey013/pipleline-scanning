@@ -22,7 +22,7 @@ jobs:
 
       - name: Build my image
         id: build-image
-        run: docker build -t my-app:latest .
+        run: docker build -t ${{ steps.login-ecr.outputs.registry }}/my-app:latest -f app/Dockerfile .
 
       - name: Scan image
         id: scan
