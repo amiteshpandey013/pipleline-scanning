@@ -5,6 +5,9 @@ on: [push, pull_request]
 jobs:
   build-scan-and-push:
     runs-on: ubuntu-latest
+    permissions:
+        id-token: write # Required for OIDC
+        contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -13,7 +16,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Build my image
-        id: build-image # Add an ID to the build step
+        id: build-image
         run: docker build -t my-app:latest .
 
       - name: Scan image
@@ -26,25 +29,28 @@ jobs:
           skip-summary: true
 
       - name: Check scan status and control push
+        id: check_scan_status
         uses: actions/github-script@v6
         with:
           script: |
-            console.log("Context:", context); // Debug: Print the entire context
-            console.log("Steps:", steps); // Debug: Print the steps object
+            const core = require('@actions/core'); // Import the core module
+            console.log("Context:", context);
+            console.log("Steps:", steps);
+
             if (steps.scan && steps.scan.outputs && steps.scan.outputs.status == 'success') {
-              console.log('Scan passed, proceeding to ECR push')
-              core.setOutput('push_to_ecr', true)
+              console.log('Scan passed, proceeding to ECR push');
+              core.setOutput('push_to_ecr', 'true'); // Use core.setOutput correctly
             } else {
-              console.log('Scan failed, build stopped')
-              core.setFailed('Build failed due to scan policy violation')
-              core.setOutput('push_to_ecr', false)
+              console.log('Scan failed, build stopped');
+              core.setFailed('Build failed due to scan policy violation');
+              core.setOutput('push_to_ecr', 'false'); // Use core.setOutput correctly
             }
 
       - name: Configure AWS credentials
         if: steps.check_scan_status.outputs.push_to_ecr == 'true'
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/YOUR_IAM_ROLE_NAME
+          role-to-assume: arn:aws:iam::288761737678:role/iam-ecr-full-access
           aws-region: ap-southeast-2
 
       - name: Push to ECR
