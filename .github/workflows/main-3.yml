@@ -8,7 +8,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    outputs: # Define job-level outputs
+    outputs:
       push_to_ecr: ${{ steps.check_scan_status.outputs.push_to_ecr }}
     steps:
       - name: Checkout
@@ -38,7 +38,7 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const core = require('@actions/core');
+            const core = require('@actions/core'); // Correct: Declared only ONCE
             try {
               console.log("Context:", JSON.stringify(context, null, 2));
               console.log("Steps:", JSON.stringify(steps, null, 2));
@@ -47,7 +47,7 @@ jobs:
                 console.log('Scan passed, proceeding to ECR push');
                 core.setOutput('push_to_ecr', 'true');
               } else {
-                console.log('Scan failed or status output not found. Build stopped.');
+                console.log('Scan failed or status not found. Build stopped.');
                 core.setFailed('Build failed due to scan policy violation');
                 core.setOutput('push_to_ecr', 'false');
               }
@@ -56,8 +56,8 @@ jobs:
               core.setFailed(`JavaScript error: ${error.message}`);
             }
 
-  deploy: # New deploy job
-    needs: build-scan-and-push # Depends on the build-scan-and-push job
+  deploy:
+    needs: build-scan-and-push
     runs-on: ubuntu-latest
     if: needs.build-scan-and-push.outputs.push_to_ecr == 'true'
     permissions:
@@ -70,7 +70,7 @@ jobs:
           aws-region: ap-southeast-2
 
       - name: Push to ECR
-        uses: aws-actions/amazon-ecr-push@v2 # Use the official AWS action
+        uses: aws-actions/amazon-ecr-push@v2
         with:
           aws-region: ap-southeast-2
           repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
