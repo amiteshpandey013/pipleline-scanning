@@ -64,7 +64,7 @@ jobs:
           aws-region: ap-southeast-2
 
       - name: Push to ECR
-        uses: aws-actions/amazon-ecr-push@v2
+        uses: aws-actions/amazon-ecr-push-image@v1
         with:
           aws-region: ap-southeast-2
           repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
