@@ -37,7 +37,7 @@ jobs:
       - name: Check scan result and display link
         if: always() # Run this step regardless of previous step's outcome
         run: |
-          SCAN_ID=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' <<< "${{ steps.sysdig-scan.outcome }}")    # https://app.au1.sysdig.com/secure/#/home?from=1733916864462&to=1734521664462
+          SCAN_ID=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' <<< "${{ steps.sysdig-scan.outcome }}")
           if [[ -n "$SCAN_ID" ]]; then
             echo "Sysdig Scan Result: https://app.au1.sysdig.com/#/scanning/result/$SCAN_ID"
           else
