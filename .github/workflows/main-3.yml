@@ -66,6 +66,10 @@ jobs:
       - name: Push to ECR
         uses: hands-lab/push-ecr-action@v1
         with:
-          aws-region: ap-southeast-2
-          repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
-          image-tag: ${{ github.sha }}
+         image: my-app
+         aws-access-key-id: ${{ secret.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-key: ${{ secret.AWS_SECRET_ACCESS_KEY }}
+         aws-account-id: ${{ secret.AWS_ACCOUNT_ID }}
+         aws-region: ap-southeast-2
+         repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
+         image-tag: ${{ github.sha }}
