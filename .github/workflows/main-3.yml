@@ -17,6 +17,6 @@ jobs:
       uses: sysdiglabs/scan-action@v5
       with:
           sysdig-secure-url: https://app.au1.sysdig.com
-          image-tag: sysdiglabs/centos:latest
+          image-tag: sysdiglabs/dummy-vuln-app:latest
           sysdig-secure-token: ${{ secrets.SECURE_API_TOKEN }}
           skip-summary: true
