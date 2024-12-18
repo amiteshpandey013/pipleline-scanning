@@ -3,11 +3,19 @@ name: Container build, scan and push
 on: [push, pull_request]
 
 jobs:
-  build-scan-and-push:
-    runs-on: ubuntu-latest
+  build-and-scan: # First job: Build and scan
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      scan_status: ${{ steps.scan.outcome }} # Output the scan outcome
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Install required packages
+        run: npm install @actions/core
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -21,32 +29,43 @@ jobs:
         uses: sysdiglabs/scan-action@v5
         with:
           sysdig-secure-url: https://app.au1.sysdig.com
-          image-tag: my-app:latest  # Use the built image tag
+          image-tag: my-app:latest
           sysdig-secure-token: ${{ secrets.SECURE_API_TOKEN }}
           skip-summary: true
 
-      - name: Check scan status
+  check-scan-status:
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check scan status (Shell Script)
+        id: check_scan_status_script
         run: |
-          if [[ ${{ steps.scan.outcome }} == "success" ]]; then
-            echo "Scan passed, proceeding to ECR."
+          if [[ "${{ needs.build-and-scan.outputs.scan_status }}" == "success" ]]; then
+            echo "Scan passed"
+            echo "push_to_ecr=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Scan failed! Build process stopped."
-            exit 1  # Halt the workflow execution
+            echo "Scan failed"
+            echo "push_to_ecr=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Login to Amazon ECR (Conditional)
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        if: ${{ steps.scan.outcome == 'success' }}  # Only run if scan passes
+  deploy: # Third job: Deploy to ECR
+    needs: check-scan-status
+    runs-on: ubuntu-latest
+    if: |
+     echo "Value of push_to_ecr: ${{ needs.check-scan-status.outputs.push_to_ecr }}"
+     needs.check-scan-status.outputs.push_to_ecr == 'true'
+    permissions:
+        id-token: write
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region: ap-southeast-2  # Replace with your region
-          role-to-assume: arn:aws:iam::288761737678:role/iam-ecr-full-access  # Replace with your IAM role ARN
+          role-to-assume: arn:aws:iam::288761737678:role/iam-ecr-full-access
+          aws-region: ap-southeast-2
 
-      - name: Build and push image to ECR (Conditional)
-        id: build-push-ecr
-        uses: aws-actions/amazon-ecr-push-image@v1 # The correct action name
-        if: ${{ steps.scan.outcome == 'success' }}
+      - name: Push to ECR
+        uses: hands-lab/push-ecr-action@v1
         with:
-          registry: ${{ steps.login-ecr.outputs.registry }}
-          repository: sysdig # Replace with your ECR repository name (without the registry URI)
-          image-tag: my-app:latest
+          aws-region: ap-southeast-2
+          repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
+          image-tag: ${{ github.sha }}
