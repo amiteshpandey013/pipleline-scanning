@@ -38,10 +38,8 @@ jobs:
           script: |
             try {
               const core = require('@actions/core');
-              console.log("Context:", JSON.stringify(context, null, 2)); // Stringify for better logging
-              console.log("Steps:", JSON.stringify(steps, null, 2));
 
-              if (steps.scan && steps.scan.outputs && steps.scan.outputs.status === 'success') { // Strict equality
+              if (steps.scan && steps.scan.outputs && steps.scan.outputs.status === 'success') {
                 console.log('Scan passed, proceeding to ECR push');
                 core.setOutput('push_to_ecr', 'true');
               } else {
@@ -55,14 +53,14 @@ jobs:
             }
 
       - name: Configure AWS credentials
-        if: steps.check_scan_status.outputs.push_to_ecr == 'true'
+        if: steps.check_scan_status.outputs.push_to_ecr == 'true' # Access output inside the if condition
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
+          role-to-assume: arn:aws:iam::288761737678:role/iam-ecr-full-access
           aws-region: ap-southeast-2
 
       - name: Push to ECR
-        if: steps.check_scan_status.outputs.push_to_ecr == 'true'
+        if: steps.check_scan_status.outputs.push_to_ecr == 'true' # Access output inside the if condition
         uses: hands-lab/push-ecr-action@v1
         with:
           aws-region: ap-southeast-2
