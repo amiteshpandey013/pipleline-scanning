@@ -44,9 +44,9 @@ jobs:
 
       - name: Build and push image to ECR (Conditional)
         id: build-push-ecr
-        uses: aws-actions/amazon-ecr-push@v2
-        if: ${{ steps.scan.outcome == 'success' }}  # Only run if scan passes
+        uses: aws-actions/amazon-ecr-push-image@v1 # The correct action name
+        if: ${{ steps.scan.outcome == 'success' }}
         with:
           registry: ${{ steps.login-ecr.outputs.registry }}
-          image-tag: my-app:latest  # Use the built image tag
-          image-digest: ${{ steps.build-image.outputs.digest }}  # Optional: Use the digest for immutability
+          repository: sysdig # Replace with your ECR repository name (without the registry URI)
+          image-tag: my-app:latest
