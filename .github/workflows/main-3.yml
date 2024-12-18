@@ -3,13 +3,13 @@ name: Container build, scan and push
 on: [push, pull_request]
 
 jobs:
-  build-scan-and-push:
+  build-and-scan: # First job: Build and scan
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     outputs:
-      push_to_ecr: ${{ steps.check_scan_status.outputs.push_to_ecr }}
+      scan_status: ${{ steps.scan.outcome }} # Output the scan outcome
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -33,22 +33,28 @@ jobs:
           sysdig-secure-token: ${{ secrets.SECURE_API_TOKEN }}
           skip-summary: true
 
-      - name: Check scan status and control push
-        id: check_scan_status
+  check-scan-status: # Second job: Check the scan status (JavaScript logic)
+    needs: build-and-scan # Run after build and scan
+    runs-on: ubuntu-latest
+    outputs:
+      push_to_ecr: ${{ steps.check_scan_status_script.outputs.push_to_ecr }}
+    steps:
+      - name: Check scan status
+        id: check_scan_status_script
         uses: actions/github-script@v6
         with:
           script: |
-            const core = require('@actions/core'); // Correct: Declared only ONCE
+            const core = require('@actions/core');
             try {
-              console.log("Context:", JSON.stringify(context, null, 2));
-              console.log("Steps:", JSON.stringify(steps, null, 2));
+              const scanStatus = context.needs.build_and_scan.outputs.scan_status;
+              console.log("Scan Status:", scanStatus);
 
-              if (steps.scan && steps.scan.outputs && steps.scan.outputs.status === 'success') {
+              if (scanStatus === 'success') {
                 console.log('Scan passed, proceeding to ECR push');
                 core.setOutput('push_to_ecr', 'true');
               } else {
                 console.log('Scan failed or status not found. Build stopped.');
-                core.setFailed('Build failed due to scan policy violation');
+                core.setFailed('Scan failed or did not produce an output'); // More informative message
                 core.setOutput('push_to_ecr', 'false');
               }
             } catch (error) {
@@ -56,10 +62,10 @@ jobs:
               core.setFailed(`JavaScript error: ${error.message}`);
             }
 
-  deploy:
-    needs: build-scan-and-push
+  deploy: # Third job: Deploy to ECR
+    needs: check-scan-status
     runs-on: ubuntu-latest
-    if: needs.build-scan-and-push.outputs.push_to_ecr == 'true'
+    if: needs.check-scan-status.outputs.push_to_ecr == 'true'
     permissions:
         id-token: write
     steps:
