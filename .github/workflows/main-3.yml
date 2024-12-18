@@ -63,16 +63,9 @@ jobs:
           role-to-assume: arn:aws:iam::288761737678:role/iam-ecr-full-access
           aws-region: ap-southeast-2
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1 # Correct login action
-
-      - name: Build and push image to Amazon ECR
-        id: build-image
-        run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/my-app:latest .
-          docker push ${{ steps.login-ecr.outputs.registry }}/my-app:latest
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_NAME: my-app:latest # Replace with your image name
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Push to ECR
+        uses: hands-lab/push-ecr-action@v1
+        with:
+          aws-region: ap-southeast-2
+          repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
+          image-tag: ${{ github.sha }}
