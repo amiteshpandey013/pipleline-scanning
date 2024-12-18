@@ -12,8 +12,9 @@ jobs:
     permissions:
       contents: read
       security-events: write
-      packages: write # If pushing to GitHub Packages
-      id-token: write # For OIDC to AWS (if using ECR)
+      id-token: write # For OIDC to AWS
+    env:
+      SYSDIG_API_TOKEN: ${{ secrets.SYSDIG_API_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -22,60 +23,43 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build the Docker image (with vulnerability)
+      - name: Build the Docker image
         run: docker build -t my-app:latest .
 
-      - name: Run Sysdig scan (Intentional Failure)
-        id: sysdig-scan-fail
-        continue-on-error: true
+      - name: Run Sysdig scan
+        id: sysdig-scan
+        continue-on-error: true # Important: Allow workflow to continue
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock sysdig/sysdig-cli image-scan my-app:latest --json > results_fail.json
-          cat results_fail.json
-          if grep -q '"status": "FAIL"' results_fail.json; then
-            echo "::set-output name=scan_failed::true"
+          docker run --rm \
+            -e SYSDIG_API_TOKEN="${{ env.SYSDIG_API_TOKEN }}" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            sysdig/sysdig-cli image-scan my-app:latest
+      - name: Check scan result and display link
+        if: always() # Run this step regardless of previous step's outcome
+        run: |
+          SCAN_ID=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' <<< "${{ steps.sysdig-scan.outcome }}")
+          if [[ -n "$SCAN_ID" ]]; then
+            echo "Sysdig Scan Result: https://secure.sysdig.com/#/scanning/result/$SCAN_ID"
+          else
+            echo "Could not extract scan ID from output"
           fi
 
-      - name: Fail workflow if initial scan failed
-        if: steps.sysdig-scan-fail.outputs.scan_failed == 'true'
-        run: |
-          echo "Sysdig scan failed. Workflow will now be fixed."
-          exit 1
-
-      - name: Modify app to pass scan (Simulated Fix - Remove Vulnerability)
-        if: steps.sysdig-scan-fail.outputs.scan_failed == 'true'
-        run: |
-          # Example: Remove a vulnerable package or update a dependency
-          # For this example I will just create an empty file to change the image hash
-          touch fixed.txt
-          docker build -t my-app:fixed .
-
-      - name: Run Sysdig scan (Successful Scan)
-        if: steps.sysdig-scan-fail.outputs.scan_failed == 'true'
-        id: sysdig-scan-pass
-        run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock sysdig/sysdig-cli image-scan my-app:fixed --json > results_pass.json
-          cat results_pass.json
-          if grep -q '"status": "FAIL"' results_pass.json; then
-            exit 1
-          fi
-
-      # Example using ECR (Adapt for other registries)
       - name: Configure AWS credentials
-        if: steps.sysdig-scan-fail.outputs.scan_failed == 'true' && steps.sysdig-scan-pass.outcome == 'success'
+        if: steps.sysdig-scan.outcome == 'success'
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/YOUR_GITHUB_ACTIONS_ROLE
           aws-region: YOUR_AWS_REGION
 
       - name: Login to Amazon ECR
-        if: steps.sysdig-scan-fail.outputs.scan_failed == 'true' && steps.sysdig-scan-pass.outcome == 'success'
+        if: steps.sysdig-scan.outcome == 'success'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Push to ECR
-        if: steps.sysdig-scan-fail.outputs.scan_failed == 'true' && steps.sysdig-scan-pass.outcome == 'success'
+        if: steps.sysdig-scan.outcome == 'success'
         run: |
-          IMAGE_ID=my-app:fixed
+          IMAGE_ID=my-app:latest
           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/your-repo-name:$GITHUB_SHA"
           docker tag $IMAGE_ID $IMAGE_URI
           docker push $IMAGE_URI
