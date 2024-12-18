@@ -1,5 +1,8 @@
 name: Docker Build, Scan, and Push
 
+env:
+  IMAGE_NAME: "scan-image"
+  IMAGE_TAG: "tag1"
 on:
   push:
     branches: [main]
