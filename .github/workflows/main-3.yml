@@ -1,53 +1,22 @@
-env:
-  IMAGE_NAME: "mytestimage"
-  IMAGE_TAG: "my-tag"
+name: Container build, scan and push
 
-name: Docker Build and Sysdig Scan
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 jobs:
-  build-and-scan:
+  build-scan-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write # For uploading security events (optional)
-    env:
-      SYSDIG_API_TOKEN: ${{ secrets.SYSDIG_API_TOKEN }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build the Docker image
-        run: docker build -t my-app:latest .
-
-      - name: Download sysdig-cli-scanner if needed
-        run:  |
-          curl -sLO https://download.sysdig.com/scanning/sysdig-cli-scanner/latest_version.txt
-          mkdir -p ${GITHUB_WORKSPACE}/cache/db/
-          if [ ! -f ${GITHUB_WORKSPACE}/cache/latest_version.txt ] || [ $(cat ./latest_version.txt) != $(cat ${GITHUB_WORKSPACE}/cache/latest_version.txt) ]; then
-          cp ./latest_version.txt ${GITHUB_WORKSPACE}/cache/latest_version.txt
-          curl -sL -o ${GITHUB_WORKSPACE}/cache/sysdig-cli-scanner "https://download.sysdig.com/scanning/bin/sysdig-cli-scanner/$(cat ${GITHUB_WORKSPACE}/cache/latest_version.txt)/linux/amd64/sysdig-cli-scanner"
-          chmod +x ${GITHUB_WORKSPACE}/cache/sysdig-cli-scanner
-           else
-          echo "sysdig-cli-scanner latest version already downloaded"
-           fi
-
-      - name: Scan the image using sysdig-cli-scanner
-        env:
-           SECURE_API_TOKEN: ${{ secrets.SECURE_API_TOKEN }}
-        run: |
-          ${GITHUB_WORKSPACE}/cache/sysdig-cli-scanner \
-          --apiurl ${SYSDIG_SECURE_ENDPOINT} \
-          docker://${REGISTRY_HOST}/${{ secrets.REGISTRY_USER }}/${IMAGE_NAME}:${IMAGE_TAG} \
-          --console-log \
-          --dbpath=${GITHUB_WORKSPACE}/cache/db/ \
-          --cachepath=${GITHUB_WORKSPACE}/cache/scanner-cache/
+    - name: Checkout
+      uses: actions/checkout@v2
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+       
+    - name: Scan image
+      id: scan
+      uses: sysdiglabs/scan-action@v5
+      with:
+          sysdig-secure-url: https://app.au1.sysdig.com
+          image-tag: sysdiglabs/dummy-vuln-app:latest
+          sysdig-secure-token: ${{ secrets.SECURE_API_TOKEN }}
+          skip-summary: true
