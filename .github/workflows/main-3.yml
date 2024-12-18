@@ -1,6 +1,6 @@
 env:
-  IMAGE_NAME: "scan-image"
-  IMAGE_TAG: "tag1"
+  IMAGE_NAME: "mytestimage"
+  IMAGE_TAG: "my-tag"
 
 name: Docker Build and Sysdig Scan
 
