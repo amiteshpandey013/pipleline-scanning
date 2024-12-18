@@ -38,6 +38,6 @@ jobs:
       if: steps.scan.outputs.status == 'success'
       uses: aws-actions/amazon-ecr-push@v2
       with:
-          aws-region: your-aws-region
-          repository-name: your-repo-name
+          aws-region: ap-southeast-2
+          repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
           image-tag: ${{ github.sha }}
