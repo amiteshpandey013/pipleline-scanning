@@ -74,5 +74,5 @@ jobs:
           docker push $ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_NAME: my-app:latest # Replace with your image name
+          IMAGE_NAME: my-app # Replace with your image name
           IMAGE_TAG: ${{ github.sha }}
