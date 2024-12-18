@@ -6,7 +6,7 @@ jobs:
   build-scan-and-push:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Required for OIDC
+      id-token: write
       contents: read
     steps:
       - name: Checkout
@@ -33,18 +33,22 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const core = require('@actions/core');  # Declare core outside the script block
+            try {
+              const core = require('@actions/core');
+              console.log("Context:", JSON.stringify(context, null, 2)); // Stringify for better logging
+              console.log("Steps:", JSON.stringify(steps, null, 2));
 
-            console.log("Context:", context);
-            console.log("Steps:", steps);
-
-            if (steps.scan && steps.scan.outputs && steps.scan.outputs.status == 'success') {
-              console.log('Scan passed, proceeding to ECR push');
-              core.setOutput('push_to_ecr', 'true'); // Use core.setOutput correctly
-            } else {
-              console.log('Scan failed, build stopped');
-              core.setFailed('Build failed due to scan policy violation');
-              core.setOutput('push_to_ecr', 'false'); // Use core.setOutput correctly
+              if (steps.scan && steps.scan.outputs && steps.scan.outputs.status === 'success') { // Strict equality
+                console.log('Scan passed, proceeding to ECR push');
+                core.setOutput('push_to_ecr', 'true');
+              } else {
+                console.log('Scan failed or status output not found. Build stopped.');
+                core.setFailed('Build failed due to scan policy violation');
+                core.setOutput('push_to_ecr', 'false');
+              }
+            } catch (error) {
+              console.error("Error in github-script:", error); // Catch and log errors
+              core.setFailed(`JavaScript error: ${error.message}`); // Fail the workflow with the error message
             }
 
       - name: Configure AWS credentials
