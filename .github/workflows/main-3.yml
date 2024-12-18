@@ -6,27 +6,27 @@ jobs:
   build-scan-and-push:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Build my image
-      run: docker build -t my-app:latest .
-       
-    - name: Scan image
-      id: scan
-      uses: sysdiglabs/scan-action@v5
-      with:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build my image
+        run: docker build -t my-app:latest .
+
+      - name: Scan image
+        id: scan
+        uses: sysdiglabs/scan-action@v5
+        with:
           sysdig-secure-url: https://app.au1.sysdig.com
           image-tag: my-app:latest
           sysdig-secure-token: ${{ secrets.SECURE_API_TOKEN }}
           skip-summary: true
-    - name: Check scan status
-      uses: actions/github-script@v6
-      if: always()  # Check even if the previous step fails
-      with:
+
+      - name: Check scan status and control push (using github-script)
+        uses: actions/github-script@v6
+        with:
           script: |
             if (steps.scan.outputs.status == 'success') {
               console.log('Scan passed, proceeding to ECR push')
@@ -34,10 +34,11 @@ jobs:
               console.log('Scan failed, build stopped')
               core.setFailed('Build failed due to scan policy violation')
             }
-    - name: Push to ECR (if scan passes)
-      if: steps.scan.outputs.status == 'success'
-      uses: hands-lab/push-ecr-action@v1
-      with:
+
+      - name: Push to ECR (if scan passes)
+        if: steps.scan.outputs.status == 'success'
+        uses: hands-lab/push-ecr-action@v1  # Assuming this action pushes to ECR
+        with:
           aws-region: ap-southeast-2
           repository-name: 288761737678.dkr.ecr.ap-southeast-2.amazonaws.com/sysdig
           image-tag: ${{ github.sha }}
