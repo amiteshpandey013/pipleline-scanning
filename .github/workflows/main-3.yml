@@ -51,7 +51,9 @@ jobs:
   deploy: # Third job: Deploy to ECR
     needs: check-scan-status
     runs-on: ubuntu-latest
-    if: contains(needs.check-scan-status.outputs.push_to_ecr, 'true')
+    if: |
+     echo "Value of push_to_ecr: ${{ needs.check-scan-status.outputs.push_to_ecr }}"
+     needs.check-scan-status.outputs.push_to_ecr == 'true'
     permissions:
         id-token: write
     steps:
