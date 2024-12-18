@@ -11,6 +11,9 @@ jobs:
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
+
+    - name: Build my image
+      run: docker build -t my-app:latest .
        
     - name: Scan image
       id: scan
