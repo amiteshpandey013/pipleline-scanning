@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build-and-scan: # First job: Build and scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       id-token: write
       contents: read
