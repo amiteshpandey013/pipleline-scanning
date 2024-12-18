@@ -22,7 +22,9 @@ jobs:
 
       - name: Build my image
         id: build-image
-        run: docker build -t my-app:latest .
+        working-directory: ./app  # Set the working directory
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/my-app:${{ github.sha }} .
 
       - name: Scan image
         id: scan
