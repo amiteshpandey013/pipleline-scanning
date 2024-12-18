@@ -1,0 +1,49 @@
+name: Docker Build and Sysdig Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # For uploading security events (optional)
+    env:
+      SYSDIG_API_TOKEN: ${{ secrets.SYSDIG_API_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build the Docker image
+        run: docker build -t my-app:latest .
+
+      - name: Run Sysdig scan
+        id: sysdig-scan
+        continue-on-error: true # Crucial: Continue even if the scan fails
+        run: |
+          docker run --rm \
+            -e SYSDIG_API_TOKEN="${{ env.SYSDIG_API_TOKEN }}" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            sysdig/sysdig-cli image-scan my-app:latest
+
+      - name: Extract and display Sysdig scan link
+        if: always() # Always run this step
+        run: |
+          # Attempt to extract the scan ID. Improved regex for robustness
+          SCAN_ID=$(echo "${{ steps.sysdig-scan.outcome }}" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+
+          if [[ -n "$SCAN_ID" ]]; then
+            echo "Sysdig Scan Result: https://app.au1.sysdig.com/secure#/scanning/result/$SCAN_ID"
+          else
+            echo "Could not reliably extract scan ID. Check the workflow logs for Sysdig output."
+            # Optionally, print the entire output for debugging:
+            echo "${{ steps.sysdig-scan.outcome }}"
+          fi
