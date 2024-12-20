@@ -2,7 +2,7 @@
 FROM python:3.9-slim-buster
 
 # Set the working directory inside the container
-WORKDIR /etc
+WORKDIR /app
 
 # Copy the Python application to the container
 COPY app.py .
